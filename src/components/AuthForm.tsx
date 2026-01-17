@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
-import { supabase } from "../lib/config";
+import { supabase } from "../lib/supabaseClient";
 
 interface AuthFormProps {
   onSuccess: (userId: string, userEmail: string) => void;

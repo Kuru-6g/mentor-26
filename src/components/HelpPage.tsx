@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
-import { getHelpArticles } from "../utils/mockData";
 
 interface HelpPageProps {
   onNavigate: (page: string) => void;
@@ -30,13 +29,35 @@ interface HelpPageProps {
 
 export function HelpPage({ onNavigate }: HelpPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [helpArticles, setHelpArticles] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  useEffect(() => {
-    const articles = getHelpArticles();
-    setHelpArticles(articles);
-  }, []);
+  // Hardcoded articles since mockData is removed
+  const helpArticles = [
+    {
+      id: "1",
+      question: "How do I create a mentor profile?",
+      answer: "Sign up as a mentor, complete your profile details including your expertise and experience, and start creating sessions.",
+      category: "getting-started"
+    },
+    {
+      id: "2",
+      question: "Is it free to join sessions?",
+      answer: "Yes! Many sessions are free. Mentors can choose to host free or paid sessions.",
+      category: "sessions"
+    },
+    {
+      id: "3",
+      question: "How do I request mentorship?",
+      answer: "Find a mentor in the directory and click 'Request Mentorship' on their profile.",
+      category: "mentorship"
+    },
+    {
+      id: "4",
+      question: "How do I reset my password?",
+      answer: "Go to the login page and click 'Forgot Password' to receive reset instructions.",
+      category: "account"
+    }
+  ];
 
   const categoryIcons: Record<string, any> = {
     "getting-started": Users,
