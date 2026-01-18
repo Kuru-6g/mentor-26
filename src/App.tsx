@@ -54,10 +54,15 @@ function AppContent() {
         setUserRole(user.role);
         setAuthState("authenticated");
 
-        // If we were on auth page or profile setup, go to dashboard/home
+        // If we are currently on a restricted page, don't redirect unnecessarily
+        // But if we just logged in (currentPage is auth or profile-setup), redirect.
         if (currentPage === 'auth' || currentPage === 'profile-setup') {
-            if (user.role === 'mentor') setCurrentPage('dashboard');
-            else setCurrentPage('home'); // or mentors
+            if (user.role === 'mentor') {
+                setCurrentPage('dashboard');
+            } else {
+                setCurrentPage('home');
+            }
+            window.scrollTo({ top: 0, behavior: "smooth" });
         }
       } else {
         setPendingUserId(user.id);
@@ -72,7 +77,7 @@ function AppContent() {
       setPendingUserId(null);
       setPendingUserEmail(null);
     }
-  }, [user, authLoading, currentPage]);
+  }, [user, authLoading]); // Removed currentPage dependency to avoid loop/flicker
 
   // Load Data
   useEffect(() => {
