@@ -112,7 +112,7 @@ export function ProfileSetup({ userId, userEmail, onComplete, initialData = {} }
       };
 
       // Check if profile exists
-      const { data: existingProfile } = await supabaseService.getProfile(userId);
+      const existingProfile = await supabaseService.getProfile(userId);
 
       let result;
       if (existingProfile) {

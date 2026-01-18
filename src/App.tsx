@@ -56,8 +56,8 @@ function AppContent() {
 
         // If we were on auth page or profile setup, go to dashboard/home
         if (currentPage === 'auth' || currentPage === 'profile-setup') {
-            if (user.role === 'mentor') setCurrentPage('dashboard');
-            else setCurrentPage('home'); // or mentors
+          if (user.role === 'mentor') setCurrentPage('dashboard');
+          else setCurrentPage('mentors');
         }
       } else {
         setPendingUserId(user.id);
@@ -82,46 +82,46 @@ function AppContent() {
   // Reload requests when user changes
   useEffect(() => {
     if (currentUser) {
-        loadSessionRequests();
+      loadSessionRequests();
     } else {
-        setSessionRequests([]);
+      setSessionRequests([]);
     }
   }, [currentUser]);
 
   const loadSessions = async () => {
     try {
-        const data = await supabaseService.getSessions();
-        setSessions(data);
+      const data = await supabaseService.getSessions();
+      setSessions(data);
     } catch (error) {
-        console.error("Failed to load sessions", error);
-        toast.error("Failed to load sessions");
+      console.error("Failed to load sessions", error);
+      toast.error("Failed to load sessions");
     }
   };
 
   const loadSessionRequests = async () => {
     if (!currentUser) return;
     try {
-        // If mentor, we want requests for my sessions (pass no args to let RLS handle it or implement specific logic)
-        // If mentee, we want my requests (pass userId).
+      // If mentor, we want requests for my sessions (pass no args to let RLS handle it or implement specific logic)
+      // If mentee, we want my requests (pass userId).
 
-        // The service implementation:
-        // getSessionRequests(userId?, mentorId?)
-        // If userId passed -> eq('user_id', userId) -> My OUTGOING requests
+      // The service implementation:
+      // getSessionRequests(userId?, mentorId?)
+      // If userId passed -> eq('user_id', userId) -> My OUTGOING requests
 
-        let data;
-        if (currentUser.role === 'mentor') {
-            // Fetch requests FOR my sessions.
-            // Currently service doesn't have a direct "get incoming requests" arg that works perfectly without logic.
-            // But let's assume getSessionRequests() without args returns all visible requests (via RLS).
-            // RLS says: "Mentors can view requests for their sessions"
-            data = await supabaseService.getSessionRequests();
-        } else {
-            // Fetch requests I made
-            data = await supabaseService.getSessionRequests(currentUser.id);
-        }
-        setSessionRequests(data);
+      let data;
+      if (currentUser.role === 'mentor') {
+        // Fetch requests FOR my sessions.
+        // Currently service doesn't have a direct "get incoming requests" arg that works perfectly without logic.
+        // But let's assume getSessionRequests() without args returns all visible requests (via RLS).
+        // RLS says: "Mentors can view requests for their sessions"
+        data = await supabaseService.getSessionRequests();
+      } else {
+        // Fetch requests I made
+        data = await supabaseService.getSessionRequests(currentUser.id);
+      }
+      setSessionRequests(data);
     } catch (error) {
-        console.error("Failed to load requests", error);
+      console.error("Failed to load requests", error);
     }
   };
 
@@ -141,9 +141,9 @@ function AppContent() {
     // The effect will pick it up and update state.
     // But we can force redirect.
     if (profileData.role === "mentor") {
-        setCurrentPage("dashboard");
+      setCurrentPage("dashboard");
     } else {
-        setCurrentPage("mentors");
+      setCurrentPage("mentors");
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -165,7 +165,7 @@ function AppContent() {
   const handleSelectMentor = (mentorId: number | string) => {
     // Redirect to auth if trying to view mentor profile without login
     if (authState !== "authenticated") {
-        // Store intent?
+      // Store intent?
       setAuthState("auth");
       setCurrentPage("auth");
       return;
@@ -174,9 +174,9 @@ function AppContent() {
     // We need to check MentorDirectory.
     // Assuming we might eventually migrate it, but for now let's handle both.
     if (typeof mentorId === 'string') {
-        setSelectedMentorIdString(mentorId);
+      setSelectedMentorIdString(mentorId);
     } else {
-        setSelectedMentorId(mentorId);
+      setSelectedMentorId(mentorId);
     }
     setCurrentPage("mentor-profile");
   };
@@ -206,19 +206,19 @@ function AppContent() {
     >,
   ) => {
     try {
-        if (!currentUser) return;
+      if (!currentUser) return;
 
-        const createdSession = await supabaseService.createSession({
-            ...newSession,
-            createdBy: currentUser.id
-        });
+      const createdSession = await supabaseService.createSession({
+        ...newSession,
+        createdBy: currentUser.id
+      });
 
-        setSessions([createdSession, ...sessions]);
-        toast.success("Session created successfully!", {
-          description: "Your session is now visible to all users.",
-        });
+      setSessions([createdSession, ...sessions]);
+      toast.success("Session created successfully!", {
+        description: "Your session is now visible to all users.",
+      });
     } catch (error: any) {
-        toast.error("Failed to create session", { description: error.message });
+      toast.error("Failed to create session", { description: error.message });
     }
   };
 
@@ -238,31 +238,31 @@ function AppContent() {
     }
 
     try {
-        const request = await supabaseService.createSessionRequest({
-            sessionId,
-            userId: currentUser.id,
-            userName: currentUser.full_name,
-            userEmail: currentUser.email,
-            userAvatar: currentUser.avatar_url,
-            ...formData
-        });
+      const request = await supabaseService.createSessionRequest({
+        sessionId,
+        userId: currentUser.id,
+        userName: currentUser.full_name,
+        userEmail: currentUser.email,
+        userAvatar: currentUser.avatar_url,
+        ...formData
+      });
 
-        // Refresh requests
-        await loadSessionRequests();
+      // Refresh requests
+      await loadSessionRequests();
 
-        toast.success("Request sent successfully!");
+      toast.success("Request sent successfully!");
     } catch (error: any) {
-        toast.error("Failed to send request", { description: error.message });
+      toast.error("Failed to send request", { description: error.message });
     }
   };
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
-        await supabaseService.deleteSession(sessionId);
-        setSessions(sessions.filter((s) => s.id !== sessionId));
-        toast.success("Session deleted successfully");
+      await supabaseService.deleteSession(sessionId);
+      setSessions(sessions.filter((s) => s.id !== sessionId));
+      toast.success("Session deleted successfully");
     } catch (error: any) {
-        toast.error("Failed to delete session");
+      toast.error("Failed to delete session");
     }
   };
 
@@ -271,21 +271,21 @@ function AppContent() {
     action: "accept" | "reject"
   ) => {
     try {
-        await supabaseService.updateSessionRequestStatus(requestId, action);
+      await supabaseService.updateSessionRequestStatus(requestId, action);
 
-        // Update local state
-        setSessionRequests(prev => prev.map(r =>
-            r.id === requestId ? { ...r, status: action === "accept" ? "accepted" : "rejected" } : r
-        ));
+      // Update local state
+      setSessionRequests(prev => prev.map(r =>
+        r.id === requestId ? { ...r, status: action === "accept" ? "accepted" : "rejected" } : r
+      ));
 
-        // If accepted, we might want to reload sessions to update attendee count
-        if (action === "accept") {
-            loadSessions();
-        }
+      // If accepted, we might want to reload sessions to update attendee count
+      if (action === "accept") {
+        loadSessions();
+      }
 
-        toast.success(`Request ${action}ed`);
+      toast.success(`Request ${action}ed`);
     } catch (error: any) {
-        toast.error("Failed to update request");
+      toast.error("Failed to update request");
     }
   };
 
