@@ -24,6 +24,16 @@ export interface UserProfile {
   profile_completed?: boolean;
 }
 
+export interface Achievement {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  type?: string;
+  created_at: string;
+}
+
 export interface Speaker {
   name: string;
   avatar: string;
@@ -80,7 +90,7 @@ const mapDBSessionToSession = (dbSession: any): Session => {
     time: time,
     duration: dbSession.duration || "60 min",
     topics: dbSession.topics || [],
-    attendees: dbSession.attendees_count || 0, // Need to handle this count
+    attendees: dbSession.attendees_count || 0,
     sessionType: dbSession.session_type,
     location: dbSession.location,
     maxSlots: dbSession.max_participants,
@@ -157,6 +167,53 @@ export const supabaseService = {
     return data as UserProfile[];
   },
 
+  // Achievement Operations
+  async getAchievements(userId: string): Promise<Achievement[]> {
+    const { data, error } = await supabase
+      .from(tables.achievements)
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching achievements:', error);
+      return [];
+    }
+
+    return data as Achievement[];
+  },
+
+  async createAchievement(achievement: Omit<Achievement, 'id' | 'created_at' | 'user_id'> & { user_id: string }): Promise<Achievement | null> {
+    const { data, error } = await supabase
+      .from(tables.achievements)
+      .insert(achievement)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating achievement:', error);
+      toast.error('Failed to create achievement');
+      return null;
+    }
+
+    return data as Achievement;
+  },
+
+  async deleteAchievement(achievementId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from(tables.achievements)
+      .delete()
+      .eq('id', achievementId);
+
+    if (error) {
+      console.error('Error deleting achievement:', error);
+      toast.error('Failed to delete achievement');
+      return false;
+    }
+
+    return true;
+  },
+
   // Session Operations
   async getSessions(filters: {
     status?: string;
@@ -164,23 +221,6 @@ export const supabaseService = {
     session_type?: string;
     created_by?: string;
   } = {}) {
-    let query = supabase
-      .from(tables.sessions)
-      .select('*, session_requests(count)');
-      // Note: getting count of requests is not exactly "attendees",
-      // but if we filter requests by status='accepted' it would be better.
-      // However, supabase simple count is tricky.
-      // Let's rely on a separate query or basic selection for now.
-
-    // Actually, let's just select * and handle counts separately or assume backend triggers update a count column if it existed.
-    // For now, I'll fetch everything.
-
-    // Improved query:
-    // We want to count 'accepted' requests as attendees.
-    // .select('*, session_requests(count)') where session_requests.status = 'accepted'
-    // This is hard in one query without foreign key alias or complex query.
-    // I will simplify and just fetch sessions, and maybe attendees count if I can.
-
     let q = supabase.from(tables.sessions).select('*');
 
     if (filters.status) {
@@ -200,17 +240,8 @@ export const supabaseService = {
       return [];
     }
 
-    // Filter by topic in memory if needed (contains operator)
     let sessions = data;
-    if (filters.topic) {
-        // q = q.contains('topics', [filters.topic]); // This should work if column is array
-    }
 
-    // Now for each session, we technically need the attendee count.
-    // For this MVP, I will do a secondary fetch or relying on the mapped object having 0 if not joined.
-    // A better way is to define a view or use .select('*, session_requests(count)').eq('session_requests.status', 'accepted')
-
-    // Let's manually fetch accepted counts for these sessions.
     const sessionIds = sessions.map((s: any) => s.id);
     const { data: requestData } = await supabase
         .from('session_requests')
@@ -230,10 +261,6 @@ export const supabaseService = {
   },
 
   async createSession(session: Omit<Session, 'id' | 'attendees' | 'availableSlots'>) {
-    // Convert Frontend session to DB session
-    // Combine date and time to start_time
-    // We need an end_time too. We can infer it from duration.
-
     const startTime = new Date(`${session.date} ${session.time}`);
     const durationMinutes = parseInt(session.duration) || 60;
     const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
@@ -250,7 +277,7 @@ export const supabaseService = {
       max_participants: session.maxSlots,
       company_name: session.companyName,
       speakers: session.speakers,
-      created_by: session.createdBy // Should be set by RLS to auth.uid(), but we can pass it
+      created_by: session.createdBy
     };
 
     const { data, error } = await supabase
@@ -281,19 +308,11 @@ export const supabaseService = {
 
   // Session Requests
   async getSessionRequests(userId?: string, mentorId?: string) {
-    // If userId provided, get requests MADE BY user.
-    // If mentorId provided, get requests FOR SESSIONS owned by mentor.
-
     let query = supabase.from('session_requests').select('*');
 
     if (userId) {
       query = query.eq('user_id', userId);
     }
-
-    // For mentor, it's more complex: select requests where session.created_by = mentorId
-    // We can filter in memory or join.
-    // But since RLS policies allow "Mentors can view requests for their sessions", we can just fetch all accessible requests if we are the mentor.
-    // However, if we want to be specific:
 
     const { data, error } = await query;
 
@@ -302,7 +321,6 @@ export const supabaseService = {
       return [];
     }
 
-    // Map DB to Frontend
     return data.map((r: any) => ({
       id: r.id,
       sessionId: r.session_id,

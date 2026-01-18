@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -9,40 +9,12 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Plus, Edit, Trash2, Calendar, Award, Video, Users2, MapPin, Monitor, UserPlus, X, Inbox, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Award, Video, Users2, MapPin, Monitor, UserPlus, X, Inbox, Users, Loader2 } from "lucide-react";
 import { SessionRequestsManager } from "./SessionRequestsManager";
 import { SessionParticipants } from "./SessionParticipants";
-
-interface Achievement {
-  id: number;
-  title: string;
-  description: string;
-  date: string;
-  type: string;
-}
-
-interface Speaker {
-  name: string;
-  avatar: string;
-  title?: string;
-}
-
-interface Session {
-  id: string;
-  title: string;
-  description: string;
-  speakers: Speaker[];
-  date: string;
-  time: string;
-  duration: string;
-  topics: string[];
-  attendees: number;
-  sessionType: "online" | "physical";
-  location?: string;
-  maxSlots?: number;
-  availableSlots?: number;
-  companyName?: string;
-}
+import { supabaseService, Session, SessionRequest, Speaker, Achievement } from "../services/supabaseService";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "sonner";
 
 interface VisitingExperience {
   id: number;
@@ -51,18 +23,6 @@ interface VisitingExperience {
   date: string;
   description: string;
   topics: string[];
-}
-
-interface SessionRequest {
-  id: string;
-  sessionId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userAvatar: string;
-  status: "pending" | "accepted" | "rejected";
-  requestedAt: string;
-  updatedAt: string;
 }
 
 interface MentorDashboardProps {
@@ -82,26 +42,60 @@ export function MentorDashboard({
   currentUserId,
   onRespondToRequest
 }: MentorDashboardProps) {
-  // Mock current mentor info - in real app this would come from auth
-  const currentMentor = {
-    name: "Sarah Johnson",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop"
+  const { user, updateProfile } = useAuth();
+
+  // Profile state
+  const [profileForm, setProfileForm] = useState({
+    full_name: user?.full_name || "",
+    current_role: user?.current_role || "",
+    company: user?.company || "",
+    bio: user?.bio || "",
+    expertise: user?.expertise?.join(", ") || "",
+    years_experience: user?.years_experience || 0,
+    linkedin_url: user?.linkedin_url || "",
+    github_url: user?.github_url || "",
+    website_url: user?.website_url || ""
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Achievements state
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [isLoadingAchievements, setIsLoadingAchievements] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+        loadAchievements();
+        // Sync profile form if user updates
+        setProfileForm({
+            full_name: user.full_name || "",
+            current_role: user.current_role || "",
+            company: user.company || "",
+            bio: user.bio || "",
+            expertise: user.expertise?.join(", ") || "",
+            years_experience: user.years_experience || 0,
+            linkedin_url: user.linkedin_url || "",
+            github_url: user.github_url || "",
+            website_url: user.website_url || ""
+        });
+    }
+  }, [user]);
+
+  const loadAchievements = async () => {
+    if (!user?.id) return;
+    setIsLoadingAchievements(true);
+    try {
+        const data = await supabaseService.getAchievements(user.id);
+        setAchievements(data);
+    } catch (error) {
+        console.error("Failed to load achievements", error);
+    } finally {
+        setIsLoadingAchievements(false);
+    }
   };
 
-  const [achievements, setAchievements] = useState<Achievement[]>([
-    {
-      id: 1,
-      title: "AWS Solutions Architect - Professional",
-      description: "Achieved professional level certification in AWS cloud architecture",
-      date: "March 2024",
-      type: "Certification"
-    }
-  ]);
-
   // Filter sessions to show only those created by this mentor
-  const mentorSessions = sessions.filter(s =>
-    s.speakers.some(speaker => speaker.name === currentMentor.name)
-  );
+  // Assuming sessions prop is already filtered or we filter by createdBy
+  const mentorSessions = sessions.filter(s => s.createdBy === user?.id);
 
   const [visitingExperiences, setVisitingExperiences] = useState<VisitingExperience[]>([
     {
@@ -152,17 +146,42 @@ export function MentorDashboard({
   const [isAddSessionOpen, setIsAddSessionOpen] = useState(false);
   const [isAddExperienceOpen, setIsAddExperienceOpen] = useState(false);
 
-  const handleAddAchievement = () => {
-    if (newAchievement.title && newAchievement.description) {
-      setAchievements([
-        ...achievements,
-        {
-          ...newAchievement,
-          id: achievements.length + 1
-        }
-      ]);
-      setNewAchievement({ title: "", description: "", date: "", type: "Certification" });
-      setIsAddAchievementOpen(false);
+  const handleProfileUpdate = async () => {
+    if (!user) return;
+    setIsSavingProfile(true);
+    try {
+        await updateProfile({
+            ...profileForm,
+            expertise: profileForm.expertise.split(",").map(s => s.trim()).filter(Boolean)
+        });
+        // Success handled in context
+    } catch (error) {
+        // Error handled in context
+    } finally {
+        setIsSavingProfile(false);
+    }
+  };
+
+  const handleAddAchievement = async () => {
+    if (newAchievement.title && newAchievement.description && user) {
+      try {
+          const created = await supabaseService.createAchievement({
+              user_id: user.id,
+              title: newAchievement.title,
+              description: newAchievement.description,
+              date: newAchievement.date,
+              type: newAchievement.type
+          });
+
+          if (created) {
+              setAchievements([...achievements, created]);
+              setNewAchievement({ title: "", description: "", date: "", type: "Certification" });
+              setIsAddAchievementOpen(false);
+              toast.success("Achievement added successfully");
+          }
+      } catch (error) {
+          toast.error("Failed to add achievement");
+      }
     }
   };
 
@@ -203,7 +222,7 @@ export function MentorDashboard({
       setSessionSpeakers([...sessionSpeakers, {
         name: newSpeaker.name,
         title: newSpeaker.title,
-        avatar: newSpeaker.avatar || currentMentor.avatar
+        avatar: newSpeaker.avatar || (user?.avatar_url || "")
       }]);
       setNewSpeaker({ name: "", title: "", avatar: "" });
     }
@@ -214,16 +233,17 @@ export function MentorDashboard({
   };
 
   const handleAddCurrentMentorAsSpeaker = () => {
-    if (!sessionSpeakers.some(s => s.name === currentMentor.name)) {
+    if (user && !sessionSpeakers.some(s => s.name === user.full_name)) {
       setSessionSpeakers([...sessionSpeakers, {
-        name: currentMentor.name,
-        avatar: currentMentor.avatar,
-        title: "Senior Software Engineer"
+        name: user.full_name,
+        avatar: user.avatar_url || "",
+        title: user.current_role || "Mentor"
       }]);
     }
   };
 
   const handleAddExperience = () => {
+    // Note: Visiting experiences still mock for now, can be implemented similarly to achievements
     if (newExperience.menteeName && newExperience.description) {
       setVisitingExperiences([
         ...visitingExperiences,
@@ -243,8 +263,11 @@ export function MentorDashboard({
     setVisitingExperiences(visitingExperiences.filter(e => e.id !== id));
   };
 
-  const handleDeleteAchievement = (id: number) => {
-    setAchievements(achievements.filter(a => a.id !== id));
+  const handleDeleteAchievement = async (id: string) => {
+    if (await supabaseService.deleteAchievement(id)) {
+        setAchievements(achievements.filter(a => a.id !== id));
+        toast.success("Achievement deleted");
+    }
   };
 
   const handleDeleteSessionClick = (id: string) => {
@@ -282,9 +305,9 @@ export function MentorDashboard({
             <div className="space-y-6">
               <div className="flex items-center gap-6">
                 <Avatar className="w-24 h-24">
-                  <AvatarImage src={currentMentor.avatar} />
+                  <AvatarImage src={user?.avatar_url} />
                   <AvatarFallback>
-                    {currentMentor.name.split(' ').map(n => n[0]).join('')}
+                    {user?.full_name?.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -294,32 +317,73 @@ export function MentorDashboard({
               </div>
               <div>
                 <Label>Full Name</Label>
-                <Input defaultValue="Sarah Johnson" />
+                <Input
+                    value={profileForm.full_name}
+                    onChange={(e) => setProfileForm({...profileForm, full_name: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Title</Label>
-                <Input defaultValue="Senior Software Engineer" />
+                <Input
+                    value={profileForm.current_role}
+                    onChange={(e) => setProfileForm({...profileForm, current_role: e.target.value})}
+                />
               </div>
               <div>
                 <Label>Company</Label>
-                <Input defaultValue="Tech Corp" />
+                <Input
+                    value={profileForm.company}
+                    onChange={(e) => setProfileForm({...profileForm, company: e.target.value})}
+                />
               </div>
               <div>
-                <Label>Location</Label>
-                <Input defaultValue="San Francisco, CA" />
+                <Label>Years of Experience</Label>
+                <Input
+                    type="number"
+                    value={profileForm.years_experience}
+                    onChange={(e) => setProfileForm({...profileForm, years_experience: parseInt(e.target.value) || 0})}
+                />
               </div>
               <div>
                 <Label>Bio</Label>
                 <Textarea
-                  defaultValue="Passionate software engineer with 10+ years of experience building scalable web applications."
+                  value={profileForm.bio}
+                  onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})}
                   rows={4}
                 />
               </div>
               <div>
                 <Label>Expertise (comma-separated)</Label>
-                <Input defaultValue="React, TypeScript, System Design, Node.js, AWS" />
+                <Input
+                    value={profileForm.expertise}
+                    onChange={(e) => setProfileForm({...profileForm, expertise: e.target.value})}
+                />
               </div>
-              <Button>Save Changes</Button>
+              <div>
+                <Label>LinkedIn URL</Label>
+                <Input
+                    value={profileForm.linkedin_url}
+                    onChange={(e) => setProfileForm({...profileForm, linkedin_url: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>GitHub URL</Label>
+                <Input
+                    value={profileForm.github_url}
+                    onChange={(e) => setProfileForm({...profileForm, github_url: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Website URL</Label>
+                <Input
+                    value={profileForm.website_url}
+                    onChange={(e) => setProfileForm({...profileForm, website_url: e.target.value})}
+                />
+              </div>
+              <Button onClick={handleProfileUpdate} disabled={isSavingProfile}>
+                {isSavingProfile && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
+              </Button>
             </div>
           </Card>
         </TabsContent>
@@ -362,9 +426,9 @@ export function MentorDashboard({
                   <div>
                     <Label>Date</Label>
                     <Input
+                      type="date"
                       value={newAchievement.date}
                       onChange={(e) => setNewAchievement({ ...newAchievement, date: e.target.value })}
-                      placeholder="e.g., March 2024"
                     />
                   </div>
                   <div>
@@ -383,33 +447,40 @@ export function MentorDashboard({
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {achievements.map((achievement) => (
-              <Card key={achievement.id} className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h4 className="mb-1">{achievement.title}</h4>
-                    <Badge variant="outline">{achievement.type}</Badge>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteAchievement(achievement.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-                <p className="text-muted-foreground mb-3 text-sm">{achievement.description}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  {achievement.date}
-                </div>
-              </Card>
-            ))}
-          </div>
+          {isLoadingAchievements ? (
+              <div className="flex justify-center p-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {achievements.map((achievement) => (
+                <Card key={achievement.id} className="p-6">
+                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                        <h4 className="mb-1">{achievement.title}</h4>
+                        <Badge variant="outline">{achievement.type}</Badge>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteAchievement(achievement.id)}
+                    >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                    </div>
+                    <p className="text-muted-foreground mb-3 text-sm">{achievement.description}</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    {achievement.date}
+                    </div>
+                </Card>
+                ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="sessions" className="mt-6">
+          {/* Session logic mostly unchanged but wired to props which are wired to Supabase in App.tsx */}
           <div className="flex justify-between items-center mb-6">
             <h3>Your Tech Sessions</h3>
             <Dialog open={isAddSessionOpen} onOpenChange={setIsAddSessionOpen}>
@@ -427,6 +498,7 @@ export function MentorDashboard({
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                  {/* Form fields same as before... */}
                   <div>
                     <Label>Title</Label>
                     <Input
