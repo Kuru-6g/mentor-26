@@ -101,13 +101,24 @@ function AppContent() {
   const loadSessionRequests = async () => {
     if (!currentUser) return;
     try {
-        // If mentor, we want requests for my sessions.
-        // If mentee, we want my requests.
-        // The service method is smart enough or we pass args.
-        // getSessionRequests(userId, mentorId)
+        // If mentor, we want requests for my sessions (pass no args to let RLS handle it or implement specific logic)
+        // If mentee, we want my requests (pass userId).
 
-        // For now, let's just fetch all related to me.
-        const data = await supabaseService.getSessionRequests(currentUser.id);
+        // The service implementation:
+        // getSessionRequests(userId?, mentorId?)
+        // If userId passed -> eq('user_id', userId) -> My OUTGOING requests
+
+        let data;
+        if (currentUser.role === 'mentor') {
+            // Fetch requests FOR my sessions.
+            // Currently service doesn't have a direct "get incoming requests" arg that works perfectly without logic.
+            // But let's assume getSessionRequests() without args returns all visible requests (via RLS).
+            // RLS says: "Mentors can view requests for their sessions"
+            data = await supabaseService.getSessionRequests();
+        } else {
+            // Fetch requests I made
+            data = await supabaseService.getSessionRequests(currentUser.id);
+        }
         setSessionRequests(data);
     } catch (error) {
         console.error("Failed to load requests", error);

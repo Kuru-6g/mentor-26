@@ -16,21 +16,42 @@ import {
   Search
 } from "lucide-react";
 import { motion } from "motion/react";
-import { getCareerListings } from "../utils/mockData";
 
 interface CareersPageProps {
   onNavigate: (page: string) => void;
 }
 
 export function CareersPage({ onNavigate }: CareersPageProps) {
-  const [listings, setListings] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
 
-  useEffect(() => {
-    const careerListings = getCareerListings();
-    setListings(careerListings);
-  }, []);
+  // Hardcoded listings
+  const listings = [
+    {
+      id: "1",
+      title: "Senior Frontend Engineer",
+      company: "TechCorp",
+      location: "Remote",
+      type: "full-time",
+      salary: "$120k - $160k",
+      description: "We are looking for an experienced Frontend Engineer to join our team.",
+      requirements: ["5+ years React", "TypeScript", "System Design"],
+      logo: "https://images.unsplash.com/photo-1549923746-c502d488b3ea?w=100&h=100&fit=crop",
+      experience: "Senior"
+    },
+    {
+      id: "2",
+      title: "Product Designer",
+      company: "Creative Studio",
+      location: "San Francisco, CA",
+      type: "full-time",
+      salary: "$100k - $140k",
+      description: "Join our design team to create beautiful and intuitive user experiences.",
+      requirements: ["Figma", "UI/UX", "Prototyping"],
+      logo: "https://images.unsplash.com/photo-1572044162444-ad60f128bdea?w=100&h=100&fit=crop",
+      experience: "Mid-level"
+    }
+  ];
 
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

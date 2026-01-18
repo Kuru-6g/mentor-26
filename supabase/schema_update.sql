@@ -2,36 +2,39 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Update Profiles Table
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS years_experience INTEGER;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS current_role TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS company TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS linkedin_url TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS github_url TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS website_url TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS interests TEXT[];
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS goals TEXT;
+-- Quoting column names to avoid reserved keyword conflicts
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "years_experience" INTEGER;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "current_role" TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "company" TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "linkedin_url" TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "github_url" TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "website_url" TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "interests" TEXT[];
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "goals" TEXT;
+-- Ensure role is present (it was in initial schema but good to be safe)
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "role" TEXT CHECK (role IN ('mentor', 'mentee', 'admin'));
 
 -- Update Sessions Table
-ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS topics TEXT[];
-ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS session_type TEXT CHECK (session_type IN ('online', 'physical'));
-ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS location TEXT;
-ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS company_name TEXT;
-ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS speakers JSONB DEFAULT '[]'::jsonb;
-ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS duration TEXT; -- "45 min" etc.
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS "topics" TEXT[];
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS "session_type" TEXT CHECK (session_type IN ('online', 'physical'));
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS "location" TEXT;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS "company_name" TEXT;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS "speakers" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS "duration" TEXT;
 
 -- Ensure session_requests has necessary fields
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS user_name TEXT; -- cache for display
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS user_email TEXT; -- cache for display
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS user_avatar TEXT; -- cache for display
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS phone TEXT;
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS occupation TEXT;
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS experience_level TEXT;
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS reason_to_join TEXT;
-ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS expectations TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "user_name" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "user_email" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "user_avatar" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "phone" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "occupation" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "experience_level" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "reason_to_join" TEXT;
+ALTER TABLE public.session_requests ADD COLUMN IF NOT EXISTS "expectations" TEXT;
 
--- RLS Policies Update (Ensure broad access for this MVP)
+-- RLS Policies Update
 
--- Profiles: Allow public read, self update
+-- Profiles
 DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
 CREATE POLICY "Users can view all profiles" ON public.profiles FOR SELECT USING (true);
 
@@ -41,7 +44,7 @@ CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Sessions: Public read, authenticated create/update
+-- Sessions
 DROP POLICY IF EXISTS "Users can view all sessions" ON public.sessions;
 CREATE POLICY "Users can view all sessions" ON public.sessions FOR SELECT USING (true);
 

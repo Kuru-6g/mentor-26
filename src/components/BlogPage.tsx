@@ -6,16 +6,46 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Calendar, Clock, ArrowRight, BookOpen, TrendingUp, Tag } from "lucide-react";
 import { motion } from "motion/react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { getBlogPosts } from "../utils/mockData";
 
 export function BlogPage() {
-  const [blogPosts, setBlogPosts] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  // Hardcoded blog posts
+  const blogPosts = [
+    {
+      id: "1",
+      title: "The Future of Remote Work in Tech",
+      excerpt: "Explore how remote work is shaping the future of the technology industry and what it means for developers.",
+      author: "Sarah Johnson",
+      authorRole: "Senior Engineer",
+      date: "Oct 15, 2023",
+      readTime: "5 min read",
+      category: "Career",
+      image: "https://images.unsplash.com/photo-1593642532973-d31b6557fa68?w=800&auto=format&fit=crop&q=60"
+    },
+    {
+      id: "2",
+      title: "Mastering React Hooks",
+      excerpt: "A comprehensive guide to using React Hooks effectively in your applications.",
+      author: "Michael Chen",
+      authorRole: "Tech Lead",
+      date: "Oct 10, 2023",
+      readTime: "8 min read",
+      category: "Development",
+      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&auto=format&fit=crop&q=60"
+    },
+    {
+      id: "3",
+      title: "Breaking into Tech: A Guide",
+      excerpt: "Tips and strategies for landing your first role in the tech industry.",
+      author: "Emily Davis",
+      authorRole: "Career Coach",
+      date: "Oct 5, 2023",
+      readTime: "6 min read",
+      category: "Career",
+      image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&auto=format&fit=crop&q=60"
+    }
+  ];
 
-  useEffect(() => {
-    const posts = getBlogPosts();
-    setBlogPosts(posts);
-  }, []);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const categories = ["all", ...new Set(blogPosts.map(post => post.category))];
   const filteredPosts = selectedCategory === "all"
